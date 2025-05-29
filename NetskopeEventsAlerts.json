@@ -1,0 +1,645 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "minLength": 1,
+            "type": "String",
+            "metadata": {
+                "description": "Not used, but needed to pass arm-ttk test `Location-Should-Not-Be-Hardcoded`.  We instead use the `workspace-location` which is derived from the LA workspace"
+            }
+        },
+        "workspace-location": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "[concat('Region to deploy solution resources -- separate from location selection',parameters('location'))]"
+            }
+        },
+        "subscription": {
+            "defaultValue": "[last(split(subscription().id, '/'))]",
+            "type": "String",
+            "metadata": {
+                "description": "subscription id where Microsoft Sentinel is setup"
+            }
+        },
+        "resourceGroupName": {
+            "defaultValue": "[resourceGroup().name]",
+            "type": "String",
+            "metadata": {
+                "description": "resource group name where Microsoft Sentinel is setup"
+            }
+        },
+        "workspace": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Workspace name for Log Analytics where Microsoft Sentinel is setup"
+            }
+        }
+    },
+    "variables": {
+        "workspaceResourceId": "[resourceId('microsoft.OperationalInsights/Workspaces', parameters('workspace'))]",
+        "_solutionName": "testfolder Connector",
+        "_solutionVersion": "1.0.0",
+        "_solutionAuthor": "Microsoft",
+        "_packageIcon": "icon icon icon icon",
+        "_solutionId": "azuresentinel.azure-sentinel-solution-azuresentinel.azure-sentinel-testfolder",
+        "dataConnectorVersionConnectorDefinition": "1.0.0",
+        "dataConnectorVersionConnections": "1.0.0",
+        "_solutionTier": "Community",
+        "_dataConnectorContentIdConnectorDefinition": "teastdelayBlobTemplateConnectorDefinition",
+        "dataConnectorTemplateNameConnectorDefinition": "[concat(parameters('workspace'),'-dc-',uniquestring(variables('_dataConnectorContentIdConnectorDefinition')))]",
+        "_dataConnectorContentIdConnections": "NetskopeEventConnections",
+        "dataConnectorTemplateNameConnections": "[concat(parameters('workspace'),'-dc-',uniquestring(variables('_dataConnectorContentIdConnections')))]",
+        "_logAnalyticsTableId1": "Netskope_BlobEvents_CL",
+        "_logAnalyticsTableAlerts": "Netskope_Alerts_CL",
+        "_logAnalyticsTableAppEvents": "Netskope_AppEvents_CL",
+        "_logAnalyticsTablePageEvents": "Netskope_PageEvents_CL",
+        "_logAnalyticsTableAuditEvents": "Netskope_AuditEvents_CL",
+        "_logAnalyticsTableClientStatusEvents": "Netskope_ClientStatusEvents_CL",
+        "_logAnalyticsTableIncidentEvents": "Netskope_IncidentEvents_CL",
+        "_logAnalyticsTableNetworkEvents": "Netskope_NetworkEvents_CL",
+        "commonKqlTransformations": "[concat('extend TimeGenerated=datetime(1970-01-01)+timestamp*1sec | extend app_session_id=tostring(app_session_id), browser_session_id=tostring(browser_session_id), connection_id=tostring(connection_id), dlp_incident_id=tostring(dlp_incident_id), dlp_parent_id=tostring(dlp_parent_id), incident_id=tostring(incident_id), latest_incident_id=tostring(latest_incident_id), request_id=tostring(request_id), transaction_id=tostring(transaction_id), dst_latitude=tostring(dst_latitude), dst_longitude=tostring(dst_longitude), src_latitude=tostring(src_latitude), src_longitude=tostring(src_longitude) | project-away _id')]",
+        "NetskopeTableSharedColumns": [
+            { "name": "TimeGenerated", "type": "datetime", "isDefaultDisplay": true, "description": "The timestamp (UTC) reflecting the time in which the event was generated." },
+            {"name": "access_method", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "account_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "account_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "acked", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "act_user", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "acting_user", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "action", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "activity", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "alert", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "alert_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "alert_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "alert_source", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "alert_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "app", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "app_session_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "appact", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "appcategory", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "appsuite", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "assignee", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "audit_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "bcc", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "breach_date", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "breach_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "breach_score", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "browser", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "browser_session_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "cc", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "cci", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "ccl", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "client_bytes", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "client_packets", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "cloud_provider", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "computer_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "conn_duration", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "conn_endtime", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "conn_starttime", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "connection_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "connection_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "custom_attr", "type": "dynamic", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "destination_file_directory", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "destination_file_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "destination_file_path", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "detection_engine", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "device", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "device_classification", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "device_sn", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "device_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dinsid", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_file", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_fingerprint_classification", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_fingerprint_match", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_fingerprint_score", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_incident_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_is_unique_count", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_match_info", "type": "dynamic", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_parent_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_profile", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_profile_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_rule", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_rule_count", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_rule_score", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_rule_severity", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dlp_unique_count", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dns_profile", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "domain", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "domain_ip", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "driver", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dst_country", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dst_geoip_src", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dst_latitude", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dst_location", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dst_longitude", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dst_region", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dst_timezone", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dst_zipcode", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dsthost", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dstip", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "dstport", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "eeml", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "email_from_user", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "email_modified", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "email_title", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "email_user", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "encryption_status", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "end_time", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "event_uuid", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "executable_hash", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "executable_signed", "type": "boolean", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_category", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_cls_encrypted", "type": "boolean", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_exposure", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_md5", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_origin", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_owner", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_path", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_pdl", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_size", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "file_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "filename", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "filepath", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "fllg", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "flpp", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "from_user", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "hostname", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "iaas_remediated", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "iaas_remediated_by", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "iaas_remediated_on", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "iaas_remediation_action", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "incident_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "inline_dlp_match_info", "type": "dynamic", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "instance", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "instance_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "instance_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "ip_protocol", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "latest_incident_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "loc", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "local_md5", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "local_sha1", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "local_sha256", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "local_source_time", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "location", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "mal_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "mal_sev", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "mal_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "malware_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "malware_severity", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "malware_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "managed_app", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "managementID", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "md5", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "message_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "mime_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "modified_date", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "netskope_pop", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "network_session_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "nsdeviceuid", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "num_users", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "numbytes", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "oauth", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "object", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "object_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "object_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "org", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "organization_unit", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "os", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "os_details", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "os_family", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "os_user_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "os_version", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "owner", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "owner_pdl", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "page", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "parent_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "pid", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "policy", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "policy_action", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "policy_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "policy_name_enforced", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "policy_version", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "pop_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "port", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "process_cert_subject", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "process_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "process_path", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "product_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "publisher_cn", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "record_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "redirect_url", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "referer", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "region_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "region_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "req", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "req_cnt", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "request_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "resource_category", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "resource_group", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "resp", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "resp_cnt", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "response_time", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "risk_level_id", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "risk_score", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "sa_profile_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "sa_rule_compliance", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "sa_rule_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "sa_rule_severity", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "sanctioned_instance", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "sender", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "server_bytes", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "server_packets", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "serverity", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "session_duration", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "session_number_unique", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "severity", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "severity_id", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "severity_level", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "sha256", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "shared_credential_user", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "shared_domains", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "shared_with", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "sharedType", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "site", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "smtp_status", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "smtp_to", "type": "dynamic", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "spet", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "spst", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_country", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_geoip_src", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_latitude", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_location", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_longitude", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_network", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_region", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_timezone", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "src_zipcode", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "srcip", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "srcport", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "start_time", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "status", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "subject", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "subtype", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "suppression_count", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "tags", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "telemetry_app", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "thr", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "threat_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "timestamp", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "to_user", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "total_packets", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "traffic_type", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "transaction_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "tss_license", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "tss_mode", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "tunnel_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "tur", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "two_factor_auth", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "unc_path", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "ur_normalized", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "url", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "user", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "user_confidence_index", "type": "int", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "user_confidence_level", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "user_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "useragent", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "usergroup", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "userip", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "userkey", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "vendor_id", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "violation", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "watchlist_name", "type": "string", "isDefaultDisplay": false, "isHidden": false},
+            {"name": "web_url", "type": "string", "isDefaultDisplay": false, "isHidden": false}
+        ]
+    },
+    "resources": [
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+            "apiVersion": "2023-04-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnectorDefinition'), variables('dataConnectorVersionConnectorDefinition'))]",
+            "location": "[parameters('workspace-location')]",
+            "dependsOn": [
+                "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+            ],
+            "properties": {
+                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+                "displayName": "[concat(variables('_solutionName'), variables('dataConnectorTemplateNameConnectorDefinition'))]",
+                "contentKind": "DataConnector",
+                "mainTemplate": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "[variables('dataConnectorVersionConnectorDefinition')]",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnectorDefinition')))]",
+                            "apiVersion": "2022-01-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+                            "properties": {
+                                "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition'))]",
+                                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]",
+                                "kind": "DataConnector",
+                                "version": "[variables('dataConnectorVersionConnectorDefinition')]",
+                                "source": { "sourceId": "[variables('_solutionId')]", "name": "[variables('_solutionName')]", "kind": "Solution" },
+                                "author": { "name": "[variables('_solutionAuthor')]" },
+                                "support": { "name": "[variables('_solutionAuthor')]", "tier": "[variables('_solutionTier')]" },
+                                "dependencies": { "criteria": [ { "version": "[variables('dataConnectorVersionConnections')]", "contentId": "[variables('_dataConnectorContentIdConnections')]", "kind": "ResourcesDataConnector" } ] }
+                            }
+                        },
+                        {
+                            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentIdConnectorDefinition'))]",
+                            "apiVersion": "2022-09-01-preview",
+                            "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectorDefinitions",
+                            "location": "[parameters('workspace-location')]",
+                            "kind": "Customizable",
+                            "properties": {
+                                "connectorUiConfig": {
+                                    "id": "NetskopeEventsAlerts", "title": "NetskopeEventsAlerts", "publisher": "Netskope",
+                                    "descriptionMarkdown": "NetskopeEvents",
+                                    "graphQueries": [
+                                        { "metricName": "Total logs received (Other Events)", "legend": "Netskope Other Events Logs", "baseQuery": "[variables('_logAnalyticsTableId1')]" },
+                                        { "metricName": "Total Alert logs received", "legend": "Netskope Alert Logs", "baseQuery": "[variables('_logAnalyticsTableAlerts')]" },
+                                        { "metricName": "Total App Event logs received", "legend": "Netskope App Event Logs", "baseQuery": "[variables('_logAnalyticsTableAppEvents')]" },
+                                        { "metricName": "Total Audit Event logs received", "legend": "Netskope Audit Event Logs", "baseQuery": "[variables('_logAnalyticsTableAuditEvents')]" },
+                                        { "metricName": "Total Incident Event logs received", "legend": "Netskope Incident Event Logs", "baseQuery": "[variables('_logAnalyticsTableIncidentEvents')]" },
+                                        { "metricName": "Total Client Event logs received", "legend": "Netskope Client Event Logs", "baseQuery": "[variables('_logAnalyticsTableClientStatusEvents')]" },
+                                        { "metricName": "Total Network Event logs received", "legend": "Netskope Network Event Logs", "baseQuery": "[variables('_logAnalyticsTableNetworkEvents')]" },
+                                        { "metricName": "Total Page Event logs received", "legend": "Netskope Page Event Logs", "baseQuery": "[variables('_logAnalyticsTablePageEvents')]" }
+                                    ],
+                                    "sampleQueries": [
+                                        { "description": "Get Sample of Netskope Other Events Logs", "query": "[concat(variables('_logAnalyticsTableId1'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Alert Logs", "query": "[concat(variables('_logAnalyticsTableAlerts'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope App Event Logs", "query": "[concat(variables('_logAnalyticsTableAppEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Audit Event Logs", "query": "[concat(variables('_logAnalyticsTableAuditEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Incident Event Logs", "query": "[concat(variables('_logAnalyticsTableIncidentEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Client Event Logs", "query": "[concat(variables('_logAnalyticsTableClientStatusEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Network Logs", "query": "[concat(variables('_logAnalyticsTableNetworkEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Page Event Logs", "query": "[concat(variables('_logAnalyticsTablePageEvents'),'| take 10')]" }
+                                    ],
+                                    "dataTypes": [
+                                        { "name": "[variables('_logAnalyticsTableId1')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableId1'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableAlerts')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableAlerts'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableAppEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableAppEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableAuditEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableAuditEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableIncidentEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableIncidentEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableClientStatusEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableClientStatusEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableNetworkEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableNetworkEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTablePageEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTablePageEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" }
+                                    ],
+                                    "connectivityCriteria": [ { "type": "HasDataConnectors", "value": null } ],
+                                    "availability": { "status": 1, "isPreview": false },
+                                    "permissions": { "tenant": null, "licenses": null,
+                                        "resourceProvider": [
+                                            { "provider": "Microsoft.OperationalInsights/workspaces", "permissionsDisplayText": "Read and Write permissions are required.", "providerDisplayName": "Workspace", "scope": "Workspace", "requiredPermissions": { "read": true, "write": true, "delete": true, "action": false } },
+                                            { "provider": "Microsoft.OperationalInsights/workspaces/sharedKeys", "permissionsDisplayText": "Read permissions to shared keys for the workspace are required. [See the documentation to learn more about workspace keys](https://docs.microsoft.com/azure/azure-monitor/platform/agent-windows#obtain-workspace-id-and-key)", "providerDisplayName": "Keys", "scope": "Workspace", "requiredPermissions": { "read": false, "write": false, "delete": false, "action": true } }
+                                        ],
+                                        "customs": [
+                                            { "name": "Subscription permissions", "description": "You need permissions to create the data flow resources: \n- storage queues (notification queue and dead-letter queue) \n- event grid topic and subscription (to send 'blob created event' notifications to the notification queue) \n- role assignments (to grant access for sentinel app to the blob container and the storage queues.)" },
+                                            { "name": "Collecting data from __ to your blob container", "description": "Follow the steps in the [documentation](https://some-guide.net) for collecting data from __ to your blob container." }
+                                        ]
+                                    },
+                                    "instructionSteps": [ { "title": "Connect Netskope Events Logs to Microsoft Sentinel", "description": "To enable the Netskope Events Logs for Microsoft Sentinel, provide the required information below and click on Connect.\n>",
+                                        "instructions": [
+                                            { "parameters": { "tenantId": "[subscription().tenantId]", "name": "principalId", "appId": "4f05ce56-95b6-4612-9d98-a45c8cc33f9f" }, "type": "ServicePrincipalIDTextBox_test" },
+                                            { "parameters": { "label": "The blob container URL you want to collect data from", "type": "text", "name": "blobContainerUri" }, "type": "Textbox" },
+                                            { "parameters": { "label": "The blobs folder name in the container. Optional.", "type": "text", "name": "blobFolderName" }, "type": "Textbox" },
+                                            { "parameters": { "label": "The blob container's storage account location", "type": "text", "name": "StorageAccountlocation" }, "type": "Textbox" },
+                                            { "parameters": { "label": "The blob container's storage account resource group name", "type": "text", "name": "StorageAccountResourceGroupName" }, "type": "Textbox" },
+                                            { "parameters": { "label": "The blob container's storage account subscription id", "type": "text", "name": "StorageAccountSubscription" }, "type": "Textbox" },
+                                            { "parameters": { "label": "The event grid topic name of the blob container's storage account if exist. else keep empty.", "description": "The data flow using event grid to send 'blob-created event' notifications. There could be only one event grid topic for each storage account.\nGo to your blob container's storage account and look in the 'Events' section. If you already have a topic, please provide it's name. Else, keep the text box empty.", "placeholder": "", "type": "text", "name": "EGSystemTopicName" }, "type": "Textbox" },
+                                            { "parameters": { "label": "toggle", "name": "toggle" }, "type": "ConnectionToggleButton" }
+                                        ], "innerSteps": null
+                                    } ], "isConnectivityCriteriasMatchSome": false
+                                }
+                            }
+                        },
+                        {
+                            "name": "NetskopeEvents", "apiVersion": "2021-09-01-preview", "type": "Microsoft.Insights/dataCollectionRules",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": {
+                                "streamDeclarations": { "Custom-NetskopeEvents": { "columns": [
+                                    {"name": "_id", "type": "string"}, {"name": "access_method", "type": "string"}, {"name": "account_id", "type": "string"}, {"name": "account_name", "type": "string"}, {"name": "acked", "type": "string"}, {"name": "act_user", "type": "string"}, {"name": "acting_user", "type": "string"}, {"name": "action", "type": "string"}, {"name": "activity", "type": "string"}, {"name": "alert", "type": "string"}, {"name": "alert_id", "type": "string"}, {"name": "alert_name", "type": "string"}, {"name": "alert_source", "type": "string"}, {"name": "alert_type", "type": "string"}, {"name": "app", "type": "string"}, {"name": "app_session_id", "type": "long"}, {"name": "appact", "type": "string"}, {"name": "appcategory", "type": "string"}, {"name": "appsuite", "type": "string"}, {"name": "assignee", "type": "string"}, {"name": "audit_type", "type": "string"}, {"name": "bcc", "type": "string"}, {"name": "breach_date", "type": "int"}, {"name": "breach_id", "type": "string"}, {"name": "breach_score", "type": "string"}, {"name": "browser", "type": "string"}, {"name": "browser_session_id", "type": "long"}, {"name": "cc", "type": "string"}, {"name": "cci", "type": "int"}, {"name": "ccl", "type": "string"}, {"name": "client_bytes", "type": "int"}, {"name": "client_packets", "type": "int"}, {"name": "cloud_provider", "type": "string"}, {"name": "computer_name", "type": "string"}, {"name": "conn_duration", "type": "int"}, {"name": "conn_endtime", "type": "int"}, {"name": "conn_starttime", "type": "int"}, {"name": "connection_id", "type": "long"}, {"name": "connection_type", "type": "string"}, {"name": "custom_attr", "type": "dynamic"}, {"name": "destination_file_directory", "type": "string"}, {"name": "destination_file_name", "type": "string"}, {"name": "destination_file_path", "type": "string"}, {"name": "detection_engine", "type": "string"}, {"name": "device", "type": "string"}, {"name": "device_classification", "type": "string"}, {"name": "device_sn", "type": "string"}, {"name": "device_type", "type": "string"}, {"name": "dinsid", "type": "string"}, {"name": "dlp_file", "type": "string"}, {"name": "dlp_fingerprint_classification", "type": "string"}, {"name": "dlp_fingerprint_match", "type": "string"}, {"name": "dlp_fingerprint_score", "type": "int"}, {"name": "dlp_incident_id", "type": "long"}, {"name": "dlp_is_unique_count", "type": "string"}, {"name": "dlp_match_info", "type": "dynamic"}, {"name": "dlp_parent_id", "type": "long"}, {"name": "dlp_profile", "type": "string"}, {"name": "dlp_profile_name", "type": "string"}, {"name": "dlp_rule", "type": "string"}, {"name": "dlp_rule_count", "type": "int"}, {"name": "dlp_rule_score", "type": "int"}, {"name": "dlp_rule_severity", "type": "string"}, {"name": "dlp_unique_count", "type": "int"}, {"name": "dns_profile", "type": "string"}, {"name": "domain", "type": "string"}, {"name": "domain_ip", "type": "string"}, {"name": "driver", "type": "string"}, {"name": "dst_country", "type": "string"}, {"name": "dst_geoip_src", "type": "int"}, {"name": "dst_latitude", "type": "real"}, {"name": "dst_location", "type": "string"}, {"name": "dst_longitude", "type": "real"}, {"name": "dst_region", "type": "string"}, {"name": "dst_timezone", "type": "string"}, {"name": "dst_zipcode", "type": "string"}, {"name": "dsthost", "type": "string"}, {"name": "dstip", "type": "string"}, {"name": "dstport", "type": "int"}, {"name": "eeml", "type": "string"}, {"name": "email_from_user", "type": "string"}, {"name": "email_modified", "type": "int"}, {"name": "email_title", "type": "string"}, {"name": "email_user", "type": "string"}, {"name": "encryption_status", "type": "string"}, {"name": "end_time", "type": "string"}, {"name": "event_uuid", "type": "string"}, {"name": "executable_hash", "type": "string"}, {"name": "executable_signed", "type": "boolean"}, {"name": "file_category", "type": "string"}, {"name": "file_cls_encrypted", "type": "boolean"}, {"name": "file_exposure", "type": "string"}, {"name": "file_id", "type": "string"}, {"name": "file_md5", "type": "string"}, {"name": "file_origin", "type": "string"}, {"name": "file_owner", "type": "string"}, {"name": "file_path", "type": "string"}, {"name": "file_pdl", "type": "string"}, {"name": "file_size", "type": "int"}, {"name": "file_type", "type": "string"}, {"name": "filename", "type": "string"}, {"name": "filepath", "type": "string"}, {"name": "fllg", "type": "string"}, {"name": "flpp", "type": "string"}, {"name": "from_user", "type": "string"}, {"name": "hostname", "type": "string"}, {"name": "iaas_remediated", "type": "string"}, {"name": "iaas_remediated_by", "type": "string"}, {"name": "iaas_remediated_on", "type": "int"}, {"name": "iaas_remediation_action", "type": "string"}, {"name": "incident_id", "type": "long"}, {"name": "inline_dlp_match_info", "type": "dynamic"}, {"name": "instance", "type": "string"}, {"name": "instance_id", "type": "string"}, {"name": "instance_name", "type": "string"}, {"name": "ip_protocol", "type": "string"}, {"name": "latest_incident_id", "type": "long"}, {"name": "loc", "type": "string"}, {"name": "local_md5", "type": "string"}, {"name": "local_sha1", "type": "string"}, {"name": "local_sha256", "type": "string"}, {"name": "local_source_time", "type": "string"}, {"name": "location", "type": "string"}, {"name": "mal_id", "type": "string"}, {"name": "mal_sev", "type": "string"}, {"name": "mal_type", "type": "string"}, {"name": "malware_id", "type": "string"}, {"name": "malware_severity", "type": "string"}, {"name": "malware_type", "type": "string"}, {"name": "managed_app", "type": "string"}, {"name": "managementID", "type": "string"}, {"name": "md5", "type": "string"}, {"name": "message_id", "type": "string"}, {"name": "mime_type", "type": "string"}, {"name": "modified_date", "type": "int"}, {"name": "netskope_pop", "type": "string"}, {"name": "network_session_id", "type": "string"}, {"name": "nsdeviceuid", "type": "string"}, {"name": "num_users", "type": "int"}, {"name": "numbytes", "type": "int"}, {"name": "oauth", "type": "string"}, {"name": "object", "type": "string"}, {"name": "object_id", "type": "string"}, {"name": "object_type", "type": "string"}, {"name": "org", "type": "string"}, {"name": "organization_unit", "type": "string"}, {"name": "os", "type": "string"}, {"name": "os_details", "type": "string"}, {"name": "os_family", "type": "string"}, {"name": "os_user_name", "type": "string"}, {"name": "os_version", "type": "string"}, {"name": "owner", "type": "string"}, {"name": "owner_pdl", "type": "string"}, {"name": "page", "type": "string"}, {"name": "parent_id", "type": "string"}, {"name": "pid", "type": "string"}, {"name": "policy", "type": "string"}, {"name": "policy_action", "type": "string"}, {"name": "policy_name", "type": "string"}, {"name": "policy_name_enforced", "type": "string"}, {"name": "policy_version", "type": "string"}, {"name": "pop_id", "type": "string"}, {"name": "port", "type": "string"}, {"name": "process_cert_subject", "type": "string"}, {"name": "process_name", "type": "string"}, {"name": "process_path", "type": "string"}, {"name": "product_id", "type": "string"}, {"name": "publisher_cn", "type": "string"}, {"name": "record_type", "type": "string"}, {"name": "redirect_url", "type": "string"}, {"name": "referer", "type": "string"}, {"name": "region_id", "type": "string"}, {"name": "region_name", "type": "string"}, {"name": "req", "type": "string"}, {"name": "req_cnt", "type": "int"}, {"name": "request_id", "type": "long"}, {"name": "resource_category", "type": "string"}, {"name": "resource_group", "type": "string"}, {"name": "resp", "type": "string"}, {"name": "resp_cnt", "type": "int"}, {"name": "response_time", "type": "int"}, {"name": "risk_level_id", "type": "int"}, {"name": "risk_score", "type": "int"}, {"name": "sa_profile_name", "type": "string"}, {"name": "sa_rule_compliance", "type": "string"}, {"name": "sa_rule_name", "type": "string"}, {"name": "sa_rule_severity", "type": "string"}, {"name": "sanctioned_instance", "type": "string"}, {"name": "sender", "type": "string"}, {"name": "server_bytes", "type": "int"}, {"name": "server_packets", "type": "int"}, {"name": "serverity", "type": "string"}, {"name": "session_duration", "type": "int"}, {"name": "session_number_unique", "type": "int"}, {"name": "severity", "type": "string"}, {"name": "severity_id", "type": "int"}, {"name": "severity_level", "type": "string"}, {"name": "sha256", "type": "string"}, {"name": "shared_credential_user", "type": "string"}, {"name": "shared_domains", "type": "string"}, {"name": "shared_with", "type": "string"}, {"name": "sharedType", "type": "string"}, {"name": "site", "type": "string"}, {"name": "smtp_status", "type": "string"}, {"name": "smtp_to", "type": "dynamic"}, {"name": "spet", "type": "int"}, {"name": "spst", "type": "int"}, {"name": "src_country", "type": "string"}, {"name": "src_geoip_src", "type": "int"}, {"name": "src_latitude", "type": "real"}, {"name": "src_location", "type": "string"}, {"name": "src_longitude", "type": "real"}, {"name": "src_network", "type": "string"}, {"name": "src_region", "type": "string"}, {"name": "src_timezone", "type": "string"}, {"name": "src_zipcode", "type": "string"}, {"name": "srcip", "type": "string"}, {"name": "srcport", "type": "int"}, {"name": "start_time", "type": "string"}, {"name": "status", "type": "string"}, {"name": "subject", "type": "string"}, {"name": "subtype", "type": "string"}, {"name": "suppression_count", "type": "string"}, {"name": "tags", "type": "string"}, {"name": "telemetry_app", "type": "string"}, {"name": "thr", "type": "string"}, {"name": "threat_type", "type": "string"}, {"name": "timestamp", "type": "int"}, {"name": "to_user", "type": "string"}, {"name": "total_packets", "type": "int"}, {"name": "traffic_type", "type": "string"}, {"name": "transaction_id", "type": "long"}, {"name": "tss_license", "type": "string"}, {"name": "tss_mode", "type": "string"}, {"name": "tunnel_id", "type": "string"}, {"name": "tur", "type": "string"}, {"name": "two_factor_auth", "type": "string"}, {"name": "unc_path", "type": "string"}, {"name": "ur_normalized", "type": "string"}, {"name": "url", "type": "string"}, {"name": "user", "type": "string"}, {"name": "user_confidence_index", "type": "int"}, {"name": "user_confidence_level", "type": "string"}, {"name": "user_id", "type": "string"}, {"name": "useragent", "type": "string"}, {"name": "usergroup", "type": "string"}, {"name": "userip", "type": "string"}, {"name": "userkey", "type": "string"}, {"name": "vendor_id", "type": "string"}, {"name": "violation", "type": "string"}, {"name": "watchlist_name", "type": "string"}, {"name": "web_url", "type": "string"}
+                                ] } },
+                                "destinations": { "logAnalytics": [ { "workspaceResourceId": "[variables('workspaceResourceId')]", "name": "clv2ws1" } ] },
+                                "dataFlows": [
+                                    { "streams": ["Custom-NetskopeEvents"], "destinations": ["clv2ws1"], "transformKql": "[concat('source | where isnotempty(record_type) and record_type startswith \"alert\" | ', variables('commonKqlTransformations'))]", "outputStream": "[concat('Custom-',variables('_logAnalyticsTableAlerts'))]" },
+                                    { "streams": ["Custom-NetskopeEvents"], "destinations": ["clv2ws1"], "transformKql": "[concat('source | where record_type == \"application\" | ', variables('commonKqlTransformations'))]", "outputStream": "[concat('Custom-',variables('_logAnalyticsTableAppEvents'))]" },
+                                    { "streams": ["Custom-NetskopeEvents"], "destinations": ["clv2ws1"], "transformKql": "[concat('source | where record_type == \"page\" | ', variables('commonKqlTransformations'))]", "outputStream": "[concat('Custom-',variables('_logAnalyticsTablePageEvents'))]" },
+                                    { "streams": ["Custom-NetskopeEvents"], "destinations": ["clv2ws1"], "transformKql": "[concat('source | where record_type == \"audit\" | ', variables('commonKqlTransformations'))]", "outputStream": "[concat('Custom-',variables('_logAnalyticsTableAuditEvents'))]" },
+                                    { "streams": ["Custom-NetskopeEvents"], "destinations": ["clv2ws1"], "transformKql": "[concat('source | where isnotempty(record_type) and record_type startswith \"client\" | ', variables('commonKqlTransformations'))]", "outputStream": "[concat('Custom-',variables('_logAnalyticsTableClientStatusEvents'))]" },
+                                    { "streams": ["Custom-NetskopeEvents"], "destinations": ["clv2ws1"], "transformKql": "[concat('source | where record_type == \"incident\" | ', variables('commonKqlTransformations'))]", "outputStream": "[concat('Custom-',variables('_logAnalyticsTableIncidentEvents'))]" },
+                                    { "streams": ["Custom-NetskopeEvents"], "destinations": ["clv2ws1"], "transformKql": "[concat('source | where record_type == \"network\" | ', variables('commonKqlTransformations'))]", "outputStream": "[concat('Custom-',variables('_logAnalyticsTableNetworkEvents'))]" },
+                                    { "streams": ["Custom-NetskopeEvents"], "destinations": ["clv2ws1"], "transformKql": "[concat('source | where isnotempty(record_type) and not(record_type startswith \"alert\" or record_type == \"application\" or record_type == \"page\") | ', variables('commonKqlTransformations'))]", "outputStream": "[concat('Custom-',variables('_logAnalyticsTableId1'))]" }
+                                ],
+                                "dataCollectionEndpointId": "[concat('/subscriptions/',parameters('subscription'),'/resourceGroups/',parameters('resourceGroupName'),'/providers/Microsoft.Insights/dataCollectionEndpoints/',parameters('workspace'))]"
+                            }
+                        },
+                        {
+                            "name": "[variables('_logAnalyticsTableId1')]", "apiVersion": "2022-10-01", "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": { "schema": { "name": "[variables('_logAnalyticsTableId1')]", "displayName": "Netskope Blob Events (Other)", "columns": "[variables('NetskopeTableSharedColumns')]" } }
+                        },
+                        {
+                            "name": "[variables('_logAnalyticsTableAlerts')]", "apiVersion": "2022-10-01", "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": { "schema": { "name": "[variables('_logAnalyticsTableAlerts')]", "displayName": "Netskope Alerts", "columns": "[variables('NetskopeTableSharedColumns')]" } }
+                        },
+                        {
+                            "name": "[variables('_logAnalyticsTableAppEvents')]", "apiVersion": "2022-10-01", "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": { "schema": { "name": "[variables('_logAnalyticsTableAppEvents')]", "displayName": "Netskope Application Events", "columns": "[variables('NetskopeTableSharedColumns')]" } }
+                        },
+                        {
+                            "name": "[variables('_logAnalyticsTableAuditEvents')]", "apiVersion": "2022-10-01", "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": { "schema": { "name": "[variables('_logAnalyticsTableAuditEvents')]", "displayName": "Netskope Audit Events", "columns": "[variables('NetskopeTableSharedColumns')]" } }
+                        },
+                        {
+                            "name": "[variables('_logAnalyticsTableClientStatusEvents')]", "apiVersion": "2022-10-01", "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": { "schema": { "name": "[variables('_logAnalyticsTableClientStatusEvents')]", "displayName": "Netskope Client Status Events", "columns": "[variables('NetskopeTableSharedColumns')]" } }
+                        },
+                        {
+                            "name": "[variables('_logAnalyticsTableIncidentEvents')]", "apiVersion": "2022-10-01", "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": { "schema": { "name": "[variables('_logAnalyticsTableIncidentEvents')]", "displayName": "Netskope DLP Incident Events", "columns": "[variables('NetskopeTableSharedColumns')]" } }
+                        },
+                        {
+                            "name": "[variables('_logAnalyticsTableNetworkEvents')]", "apiVersion": "2022-10-01", "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": { "schema": { "name": "[variables('_logAnalyticsTableNetworkEvents')]", "displayName": "Netskope Network Events", "columns": "[variables('NetskopeTableSharedColumns')]" } }
+                        },
+                        {
+                            "name": "[variables('_logAnalyticsTablePageEvents')]", "apiVersion": "2022-10-01", "type": "Microsoft.OperationalInsights/workspaces/tables",
+                            "location": "[parameters('workspace-location')]",
+                            "properties": { "schema": { "name": "[variables('_logAnalyticsTablePageEvents')]", "displayName": "Netskope Page Events", "columns": "[variables('NetskopeTableSharedColumns')]" } }
+                        }
+                    ]
+                },
+                "packageKind": "Solution", "packageVersion": "[variables('_solutionVersion')]", "packageName": "[variables('_solutionName')]",
+                "contentProductId": "[concat(substring(variables('_solutionId'), 0, 50),'-','dc','-', uniqueString(concat(variables('_solutionId'),'-','DataConnector','-',variables('_dataConnectorContentIdConnectorDefinition'),'-', variables('dataConnectorVersionConnectorDefinition'))))]",
+                "packageId": "[variables('_solutionId')]", "contentSchemaVersion": "3.0.0", "version": "[variables('_solutionVersion')]"
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectorDefinitions",
+            "apiVersion": "2022-09-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentIdConnectorDefinition'))]",
+            "location": "[parameters('workspace-location')]",
+            "kind": "Customizable",
+            "properties": {
+                "connectorUiConfig": { "id": "NetskopeEventsAlerts", "title": "NetskopeEventsAlerts", "publisher": "Microsoft", "descriptionMarkdown": "NetskopeEvents",
+                     "graphQueries": [
+                                        { "metricName": "Total logs received (Other Events)", "legend": "Netskope Other Events Logs", "baseQuery": "[variables('_logAnalyticsTableId1')]" },
+                                        { "metricName": "Total Alert logs received", "legend": "Netskope Alert Logs", "baseQuery": "[variables('_logAnalyticsTableAlerts')]" },
+                                        { "metricName": "Total App Event logs received", "legend": "Netskope App Event Logs", "baseQuery": "[variables('_logAnalyticsTableAppEvents')]" },
+                                        { "metricName": "Total Audit Event logs received", "legend": "Netskope Audit Event Logs", "baseQuery": "[variables('_logAnalyticsTableAuditEvents')]" },
+                                        { "metricName": "Total Incident Event logs received", "legend": "Netskope Incident Event Logs", "baseQuery": "[variables('_logAnalyticsTableIncidentEvents')]" },
+                                        { "metricName": "Total Client Event logs received", "legend": "Netskope Client Event Logs", "baseQuery": "[variables('_logAnalyticsTableClientStatusEvents')]" },
+                                        { "metricName": "Total Network Event logs received", "legend": "Netskope Network Event Logs", "baseQuery": "[variables('_logAnalyticsTableNetworkEvents')]" },
+                                        { "metricName": "Total Page Event logs received", "legend": "Netskope Page Event Logs", "baseQuery": "[variables('_logAnalyticsTablePageEvents')]" }
+                                    ],
+                                    "sampleQueries": [
+                                        { "description": "Get Sample of Netskope Other Events Logs", "query": "[concat(variables('_logAnalyticsTableId1'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Alert Logs", "query": "[concat(variables('_logAnalyticsTableAlerts'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope App Event Logs", "query": "[concat(variables('_logAnalyticsTableAppEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Audit Event Logs", "query": "[concat(variables('_logAnalyticsTableAuditEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Incident Event Logs", "query": "[concat(variables('_logAnalyticsTableIncidentEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Client Event Logs", "query": "[concat(variables('_logAnalyticsTableClientStatusEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Network Logs", "query": "[concat(variables('_logAnalyticsTableNetworkEvents'),'| take 10')]" },
+                                        { "description": "Get Sample of Netskope Page Event Logs", "query": "[concat(variables('_logAnalyticsTablePageEvents'),'| take 10')]" }
+                                    ],
+                                    "dataTypes": [
+                                        { "name": "[variables('_logAnalyticsTableId1')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableId1'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableAlerts')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableAlerts'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableAppEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableAppEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableAuditEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableAuditEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableIncidentEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableIncidentEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableClientStatusEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableClientStatusEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTableNetworkEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTableNetworkEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" },
+                                        { "name": "[variables('_logAnalyticsTablePageEvents')]", "lastDataReceivedQuery": "[concat(variables('_logAnalyticsTablePageEvents'),'\n       | where TimeGenerated > ago(12h)                | summarize Time = max(TimeGenerated)\n            ')]" }
+                                    ],
+                    "connectivityCriteria": [ { "type": "HasDataConnectors", "value": null } ], "availability": { "status": 1, "isPreview": false },
+                    "permissions": { "tenant": null, "licenses": null,
+                        "resourceProvider": [
+                            { "provider": "Microsoft.OperationalInsights/workspaces", "permissionsDisplayText": "Read and Write permissions are required.", "providerDisplayName": "Workspace", "scope": "Workspace", "requiredPermissions": { "read": true, "write": true, "delete": true, "action": false } },
+                            { "provider": "Microsoft.OperationalInsights/workspaces/sharedKeys", "permissionsDisplayText": "Read permissions to shared keys for the workspace are required. [See the documentation to learn more about workspace keys](https://docs.microsoft.com/azure/azure-monitor/platform/agent-windows#obtain-workspace-id-and-key)", "providerDisplayName": "Keys", "scope": "Workspace", "requiredPermissions": { "read": false, "write": false, "delete": false, "action": true } }
+                        ],
+                        "customs": [
+                            { "name": "Subscription permissions", "description": "You need permissions to create the data flow resources: \n- storage queues (notification queue and dead-letter queue) \n- event grid topic and subscription (to send 'blob created event' notifications to the notification queue) \n- role assignments (to grant access for sentinel app to the blob container and the storage queues.)" },
+                            { "name": "Collecting data from __ to your blob container", "description": "Follow the steps in the [documentation](https://some-guide.net) for collecting data from __ to your blob container." }
+                        ]
+                    },
+                    "instructionSteps": [ { "title": "Connect Netskope Events Logs to Microsoft Sentinel", "description": "To enable the Netskope Events Logs for Microsoft Sentinel, provide the required information below and click on Connect.\n>",
+                        "instructions": [
+                            { "parameters": { "tenantId": "[subscription().tenantId]", "name": "principalId", "appId": "4f05ce56-95b6-4612-9d98-a45c8cc33f9f" }, "type": "ServicePrincipalIDTextBox_test" },
+                            { "parameters": { "label": "The blob container URL you want to collect data from", "type": "text", "name": "blobContainerUri" }, "type": "Textbox" },
+                            { "parameters": { "label": "The blobs folder name in the container. Optional", "type": "text", "name": "blobFolderName" }, "type": "Textbox" },
+                            { "parameters": { "label": "The blob container's storage account location", "type": "text", "name": "StorageAccountlocation" }, "type": "Textbox" },
+                            { "parameters": { "label": "The blob container's storage account resource group name", "type": "text", "name": "StorageAccountResourceGroupName" }, "type": "Textbox" },
+                            { "parameters": { "label": "The blob container's storage account subscription id", "type": "text", "name": "StorageAccountSubscription" }, "type": "Textbox" },
+                            { "parameters": { "label": "The event grid topic name of the blob container's storage account if exist. else keep empty.", "description": "The data flow using event grid to send 'blob-created event' notifications. There could be only one event grid topic for each storage account.\nGo to your blob container's storage account and look in the 'Events' section. If you already have a topic, please provide it's name. Else, keep the text box empty.", "placeholder": "", "type": "text", "name": "EGSystemTopicName" }, "type": "Textbox" },
+                            { "parameters": { "label": "toggle", "name": "toggle" }, "type": "ConnectionToggleButton" }
+                        ], "innerSteps": null
+                    } ], "isConnectivityCriteriasMatchSome": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+            "apiVersion": "2022-01-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnectorDefinition')))]",
+            "properties": {
+                "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectorDefinitions', variables('_dataConnectorContentIdConnectorDefinition'))]",
+                "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]", "kind": "DataConnector", "version": "[variables('dataConnectorVersionConnectorDefinition')]",
+                "source": { "sourceId": "[variables('_solutionId')]", "name": "[variables('_solutionName')]", "kind": "Solution" },
+                "author": { "name": "[variables('_solutionAuthor')]" }, "support": { "name": "[variables('_solutionAuthor')]", "tier": "[variables('_solutionTier')]" },
+                "dependencies": { "criteria": [ { "version": "[variables('dataConnectorVersionConnections')]", "contentId": "[variables('_dataConnectorContentIdConnections')]", "kind": "ResourcesDataConnector" } ] }
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+            "apiVersion": "2023-04-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnections'), variables('dataConnectorVersionConnections'))]",
+            "location": "[parameters('workspace-location')]",
+            "dependsOn": [
+                "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+            ],
+            "properties": {
+                "contentId": "[variables('_dataConnectorContentIdConnections')]", "displayName": "[concat(variables('_solutionName'), variables('dataConnectorTemplateNameConnections'))]", "contentKind": "ResourcesDataConnector",
+                "mainTemplate": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#", "contentVersion": "[variables('dataConnectorVersionConnections')]",
+                    "parameters": {
+                        "connectorDefinitionName": { "defaultValue": "connectorDefinitionName", "type": "string", "minLength": 1 },
+                        "workspaceName": { "defaultValue": "[parameters('workspace')]", "type": "string" },
+                        "dcrConfig": { "defaultValue": { "dataCollectionEndpoint": "data collection Endpoint", "dataCollectionRuleImmutableId": "data collection rule immutableId" }, "type": "object" },
+                        "principalId": { "defaultValue": "principalId", "type": "string" }, "blobContainerUri": { "defaultValue": "blobContainerUri", "type": "string" },
+                        "blobFolderName": { "defaultValue": "", "type": "string" }, "StorageAccountlocation": { "defaultValue": "StorageAccountlocation", "type": "string" },
+                        "StorageAccountResourceGroupName": { "defaultValue": "StorageAccountResourceGroupName", "type": "string" },
+                        "StorageAccountSubscription": { "defaultValue": "StorageAccountSubscription", "type": "string" }, "EGSystemTopicName": { "defaultValue": "", "type": "string" }
+                    },
+                    "variables": {
+                        "_dataConnectorContentIdConnections": "[variables('_dataConnectorContentIdConnections')]", "connectorName": "testfolder",
+                        "storageAccountName": "[[split(split(parameters('blobContainerUri'), 'https://')[1], '.blob.core.windows.net')[0]]",
+                        "blobContainerName": "[[split(split(parameters('blobContainerUri'), '.blob.core.windows.net/')[1], '/')[0]]",
+                        "queueName": "[[concat(variables('connectorName'), '-notification')]", "dlqName": "[[concat(variables('connectorName'), '-dlq')]",
+                        "ResourcesIdPrefix": "[[format('/subscriptions/{0}/resourceGroups/{1}/providers', parameters('StorageAccountSubscription'), parameters('StorageAccountResourceGroupName'))]",
+                        "storageAccountId": "[[format('{0}/Microsoft.Storage/storageAccounts/{1}', variables('ResourcesIdPrefix'), variables('storageAccountName'))]",
+                        "notificationQueueResourceId": "[[format('{0}/Microsoft.Storage/storageAccounts/{1}/queueServices//default/queues/{2}', variables('ResourcesIdPrefix'), variables('storageAccountName'), variables('queueName'))]",
+                        "dlqResourceId": "[[format('{0}/Microsoft.Storage/storageAccounts/{1}/queueServices//default/queues/{2}', variables('ResourcesIdPrefix'), variables('storageAccountName'), variables('dlqName'))]",
+                        "EGSystemTopicDefaultName": "[[format('eg-system-topic-{0}-{1}', variables('connectorName'), parameters('workspaceName'))]",
+                        "EGSystemTopicName": "[[if(empty(parameters('EGSystemTopicName')), variables('EGSystemTopicDefaultName'), parameters('EGSystemTopicName'))]",
+                        "EGTopicResourceId": "[[format('{0}/Microsoft.EventGrid/systemTopics/{1}', variables('ResourcesIdPrefix'), variables('EGSystemTopicName'))]",
+                        "EgSubscriptionName": "[[format('{0}-{1}', variables('connectorName'), 'blobcreatedevents')]",
+                        "EgSubscriptionResourceId": "[[format('{0}/Microsoft.EventGrid/systemTopics/{1}/eventSubscriptions/{2}', variables('ResourcesIdPrefix'), variables('EGSystemTopicName'), variables('EgSubscriptionName'))]",
+                        "storageBlobContributorRoleId": "[[format('/subscriptions/{0}/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe', parameters('StorageAccountSubscription'))]",
+                        "storageQueueContributorRoleId": "[[format('/subscriptions/{0}/providers/Microsoft.Authorization/roleDefinitions/974c5e8b-45b9-4653-ba55-5f855dd0fb88', parameters('StorageAccountSubscription'))]",
+                        "blobRaGuid": "[[guid(variables('storageAccountName'), variables('blobContainerName'))]", "notificationQueueRaGuid": "[[guid(variables('storageAccountName'), variables('queueName'))]",
+                        "dlqRaGuid": "[[guid(variables('storageAccountName'), variables('dlqName'))]",
+                        "blobRoleAssignmentResourceId": "[[format('{0}/Microsoft.Storage/storageAccounts/{1}/blobServices/default/containers/{2}/providers/Microsoft.Authorization/roleAssignments/{3}', variables('ResourcesIdPrefix'), variables('storageAccountName'), variables('blobContainerName'),variables('blobRaGuid'))]",
+                        "notificationQueueRoleAssignmentResourceId": "[[format('{0}/Microsoft.Storage/storageAccounts/{1}/queueServices/default/queues/{2}/providers/Microsoft.Authorization/roleAssignments/{3}', variables('ResourcesIdPrefix'), variables('storageAccountName'), variables('queueName'),variables('notificationQueueRaGuid'))]",
+                        "dlqRoleAssignmentResourceId": "[[format('{0}/Microsoft.Storage/storageAccounts/{1}/queueServices/default/queues/{2}/providers/Microsoft.Authorization/roleAssignments/{3}', variables('ResourcesIdPrefix'), variables('storageAccountName'), variables('dlqName'),variables('dlqRaGuid'))]",
+                        "nestedDeploymentName": "CreateDataFlowResources", "nestedDeploymentId": "[[format('{0}/Microsoft.Resources/deployments/{1}', variables('ResourcesIdPrefix'), variables('nestedDeploymentName'))]",
+                        "delayStepName": "delayStep", "delayStepId": "[[format('{0}/Microsoft.Resources/deploymentScripts/{1}', variables('ResourcesIdPrefix'), variables('delayStepName'))]"
+                    },
+                    "resources": [
+                        { "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('DataConnector-', variables('_dataConnectorContentIdConnections')))]", "apiVersion": "2022-01-01-preview", "type": "Microsoft.OperationalInsights/workspaces/providers/metadata", "properties": { "parentId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/dataConnectors', variables('_dataConnectorContentIdConnections'))]", "contentId": "[variables('_dataConnectorContentIdConnections')]", "kind": "ResourcesDataConnector", "version": "[variables('dataConnectorVersionConnections')]", "source": { "sourceId": "[variables('_solutionId')]", "name": "[variables('_solutionName')]", "kind": "Solution" }, "author": { "name": "[variables('_solutionAuthor')]" }, "support": { "name": "[variables('_solutionAuthor')]", "tier": "[variables('_solutionTier')]" } } },
+                        { "type": "Microsoft.Resources/deployments", "apiVersion": "2021-04-01", "name": "[[variables('nestedDeploymentName')]", "properties": { "mode": "Incremental", "template": { "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#", "contentVersion": "1.0.0.0", "resources": [
+                            { "type": "Microsoft.Storage/storageAccounts/queueServices/queues", "apiVersion": "2021-04-01", "name": "[[concat(variables('storageAccountName'), '/default/', variables('queueName'))]", "properties": {} }, { "type": "Microsoft.Storage/storageAccounts/queueServices/queues", "apiVersion": "2021-04-01", "name": "[[concat(variables('storageAccountName'), '/default/', variables('dlqName'))]", "properties": {} },
+                            { "type": "Microsoft.EventGrid/systemTopics", "apiVersion": "2022-06-15", "name": "[[variables('EGSystemTopicName')]", "location": "[[parameters('StorageAccountLocation')]", "properties": { "source": "[[variables('storageAccountId')]", "topicType": "microsoft.storage.storageaccounts" }, "condition": "[[empty(parameters('EGSystemTopicName'))]" },
+                            { "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions", "apiVersion": "2023-12-15-preview", "name": "[[format('{0}/{1}', variables('EGSystemTopicName'), variables('EgSubscriptionName'))]", "dependsOn": [ "[[variables('EGTopicResourceId')]", "[[variables('notificationQueueResourceId')]" ], "properties": { "destination": { "endpointType": "StorageQueue", "properties": { "queueName": "[[variables('queueName')]", "resourceId": "[[variables('storageAccountId')]" } }, "filter": { "includedEventTypes": [ "Microsoft.Storage.BlobCreated" ], "subjectBeginsWith": "[[format('{0}/{1}/blobs/{2}', '/blobServices/default/containers', variables('blobContainerName'), if(empty(parameters('blobFolderName')), '', concat(parameters('blobFolderName'),'/')))]" } } },
+                            { "type": "Microsoft.Storage/storageAccounts/blobServices/containers/providers/roleAssignments", "apiVersion": "2018-01-01-preview", "name": "[[concat(variables('storageAccountName'), '/default/', variables('blobContainerName'), '/Microsoft.Authorization/', variables('blobRaGuid'))]", "properties": { "roleDefinitionId": "[[variables('storageBlobContributorRoleId')]", "principalId": "[[parameters('principalId')]" } },
+                            { "type": "Microsoft.Storage/storageAccounts/queueServices/queues/providers/roleAssignments", "apiVersion": "2018-01-01-preview", "name": "[[concat(variables('storageAccountName'), '/default/', variables('queueName'), '/Microsoft.Authorization/',  variables('notificationQueueRaGuid'))]", "dependsOn": [ "[[variables('notificationQueueResourceId')]" ], "properties": { "roleDefinitionId": "[[variables('storageQueueContributorRoleId')]", "principalId": "[[parameters('principalId')]" } },
+                            { "type": "Microsoft.Storage/storageAccounts/queueServices/queues/providers/roleAssignments", "apiVersion": "2018-01-01-preview", "name": "[[concat(variables('storageAccountName'), '/default/', variables('dlqName'), '/Microsoft.Authorization/', variables('dlqRaGuid'))]", "dependsOn": [ "[[variables('dlqResourceId')]" ], "properties": { "roleDefinitionId": "[[variables('storageQueueContributorRoleId')]", "principalId": "[[parameters('principalId')]" } }
+                        ] } }, "subscriptionId": "[[parameters('StorageAccountSubscription')]", "resourceGroup": "[[parameters('StorageAccountResourceGroupName')]" },
+                        { "type": "Microsoft.Resources/deploymentScripts", "apiVersion": "2020-10-01", "name": "[[variables('delayStepName')]", "location": "[resourceGroup().location]", "dependsOn": [ "[[variables('nestedDeploymentId')]" ], "kind": "AzureCLI", "properties": { "azCliVersion": "2.20.0", "timeout": "PT5M", "retentionInterval": "P1D", "scriptContent": "echo 'Waiting 1 minute for the role assignments to seep through...'; sleep 60", "cleanupPreference": "Always", "forceUpdateTag": "v1" } },
+                        { "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', 'NetskopeEventsAlerts')]", "apiVersion": "2022-12-01-preview", "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors", "location": "[parameters('workspace-location')]", "kind": "StorageAccountBlobContainer", "properties": { "connectorDefinitionName": "[[parameters('connectorDefinitionName')]", "dcrConfig": { "streamName": "Custom-NetskopeEvents", "dataCollectionEndpoint": "[[parameters('dcrConfig').dataCollectionEndpoint]", "dataCollectionRuleImmutableId": "[[parameters('dcrConfig').dataCollectionRuleImmutableId]" }, "auth": { "type": "ServicePrincipal" }, "request": { "QueueUri": "[[concat('https://', variables('storageAccountName'), '.queue.core.windows.net/', variables('queueName'))]", "DlqUri": "[[concat('https://', variables('storageAccountName'), '.queue.core.windows.net/', variables('dlqName'))]" }, "response": { "eventsJsonPaths": [ "$" ], "format": "csv", "isGzipCompressed": true } }, "dependsOn": [ "[[variables('delayStepId')]" ] }
+                    ]
+                },
+                "packageKind": "Solution", "packageVersion": "[variables('_solutionVersion')]", "packageName": "[variables('_solutionName')]",
+                "contentProductId": "[concat(substring(variables('_solutionId'), 0, 50),'-','rdc','-', uniqueString(concat(variables('_solutionId'),'-','ResourcesDataConnector','-',variables('_dataConnectorContentIdConnections'),'-', variables('dataConnectorVersionConnections'))))]",
+                "packageId": "[variables('_solutionId')]", "contentSchemaVersion": "3.0.0", "version": "[variables('_solutionVersion')]"
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
+            "apiVersion": "2023-04-01-preview",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('_solutionId'))]",
+            "location": "[parameters('workspace-location')]",
+            "properties": {
+                "version": "[variables('_solutionVersion')]", "kind": "Solution", "contentSchemaVersion": "3.0.0", "contentId": "[variables('_solutionId')]",
+                "source": { "kind": "Solution", "name": "[variables('_solutionName')]", "sourceId": "[variables('_solutionId')]" },
+                "author": { "name": "[variables('_solutionAuthor')]" }, "support": { "name": "[variables('_solutionAuthor')]" },
+                "dependencies": { "operator": "AND", "criteria": [ { "kind": "DataConnector", "contentId": "[variables('_dataConnectorContentIdConnectorDefinition')]", "version": "[variables('dataConnectorVersionConnectorDefinition')]" } ] },
+                "firstPublishDate": "2022-06-24", "providers": [ "[variables('_solutionAuthor')]" ], "contentKind": "Solution", "packageId": "[variables('_solutionId')]",
+                "contentProductId": "[concat(substring(variables('_solutionId'), 0, 50),'-','sl','-', uniqueString(concat(variables('_solutionId'),'-','Solution','-',variables('_solutionId'),'-', variables('_solutionVersion'))))]",
+                "displayName": "[variables('_solutionName')]", "publisherDisplayName": "[variables('_solutionAuthor')]", "descriptionHtml": "test", "icon": "[variables('_packageIcon')]"
+            }
+        }
+    ]
+}
