@@ -2049,7 +2049,7 @@
                     },
                     "variables": {
                         "_dataConnectorContentIdConnections": "[variables('_dataConnectorContentIdConnections')]",
-                        "connectorName": "NetskopeWebTransactions",
+                        "connectorName": "netskopewebtx",
                         "storageAccountName": "[[split(split(parameters('blobContainerUri'), 'https://')[1], '.blob.core.windows.net')[0]]",
                         "blobContainerName": "[[split(split(parameters('blobContainerUri'), '.blob.core.windows.net/')[1], '/')[0]]",
                         "queueName": "[[concat(variables('connectorName'), '-notification')]",
