@@ -41,11 +41,11 @@
     },
     "variables": {
         "workspaceResourceId": "[resourceId('microsoft.OperationalInsights/Workspaces', parameters('workspace'))]",
-        "_solutionName": "testfolder Connector",
+        "_solutionName": "Netskope Web Transactions Connector",
         "_solutionVersion": "1.0.0",
         "_solutionAuthor": "Microsoft",
         "_packageIcon": "icon icon icon icon",
-        "_solutionId": "azuresentinel.azure-sentinel-solution-azuresentinel.azure-sentinel-testfolder",
+        "_solutionId": "azuresentinel.azure-sentinel-solution-azuresentinel.azure-sentinel-webtxfolder",
         "dataConnectorVersionConnectorDefinition": "1.0.0",
         "dataConnectorVersionConnections": "1.0.0",
         "_solutionTier": "Community",
@@ -53,7 +53,7 @@
         "dataConnectorTemplateNameConnectorDefinition": "[concat(parameters('workspace'),'-dc-',uniquestring(variables('_dataConnectorContentIdConnectorDefinition')))]",
         "_dataConnectorContentIdConnections": "BlobTemplateConnections",
         "dataConnectorTemplateNameConnections": "[concat(parameters('workspace'),'-dc-',uniquestring(variables('_dataConnectorContentIdConnections')))]",
-        "_logAnalyticsTableId1": "NetskopeWebTransactions5_CL"
+        "_logAnalyticsTableId1": "NetskopeWebTransactions_CL"
     },
     "resources": [
         {
@@ -114,8 +114,8 @@
                             "kind": "Customizable",
                             "properties": {
                                 "connectorUiConfig": {
-                                    "id": "NetskopeWebTxtestfolder",
-                                    "title": "NetskopeWebTxtestfolder",
+                                    "id": "NetskopeWebTransactions",
+                                    "title": "NetskopeWebTransactions",
                                     "publisher": "Netskope",
                                     "descriptionMarkdown": "NetskopeWebTx",
                                     "graphQueries": [
@@ -198,7 +198,7 @@
                                                         "name": "principalId",
                                                         "appId": "4f05ce56-95b6-4612-9d98-a45c8cc33f9f"
                                                     },
-                                                    "type": "ServicePrincipalIDTextBox_test"
+                                                    "type": "ServicePrincipalIDTextBox"
                                                 },
                                                 {
                                                     "parameters": {
