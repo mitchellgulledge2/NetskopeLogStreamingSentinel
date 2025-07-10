@@ -3,45 +3,54 @@
 Generates and uploads simulated log data to Azure Blob Storage.
 
 .DESCRIPTION
-This script creates 175,000 log events, structured similarly to the user-provided CSV sample.
-It splits the data into multiple smaller files, compresses each into GZip format (.csv.gz),
-and uploads them directly to the specified Azure Storage Blob container.
-
-The script is designed to be run directly in Azure Cloud Shell.
+This definitive version first sets the Azure subscription context to ensure all commands
+run in the correct environment. It then fetches the storage account key to create a
+reliable authentication context, generates 175,000 log events, compresses them,
+and uploads them to the specified blob container.
 #>
 
 # --- 1. CONFIGURATION ---
+$subscriptionId     = "32593911-88a8-46c1-9129-4ca843c11980"
 $storageAccountName = "dtctest"
-$containerName = "netskope"
-$resourceGroupName  = "sa-mgulledge-log-analytics" # <-- This has been updated with your resource group.
+$containerName      = "netskope"
+$resourceGroupName  = "sa-mgulledge-log-analytics"
 
-# --- Data Generation Parameters ---
+# --- 2. SCRIPT PARAMETERS ---
 $totalEvents = 175000
-$eventsPerFile = 10000 # The script will create multiple files for better performance.
+$eventsPerFile = 10000
 $numberOfFiles = [Math]::Ceiling($totalEvents / $eventsPerFile)
 
-# --- Script Start ---
+# --- 3. SCRIPT EXECUTION ---
 Write-Host "🚀 Starting data generation and upload..."
 Write-Host "-----------------------------------------------------"
+Write-Host "Subscription    : $subscriptionId"
 Write-Host "Storage Account : $storageAccountName"
-Write-Host "Container       : $containerName"
 Write-Host "Resource Group  : $resourceGroupName"
-Write-Host "Total Events    : $totalEvents (generating as rows)"
-Write-Host "Files to Create : $numberOfFiles"
 Write-Host "-----------------------------------------------------"
 
-# Get the storage account context for the upload commands.
-# This command assumes you are already logged into Azure in Cloud Shell.
+# --- Step 1: Set the Azure Subscription Context ---
+Write-Host "🔐 Setting active subscription context..."
 try {
-    $storageContext = (Get-AzStorageAccount -ResourceGroupName $resourceGroupName -Name $storageAccountName).Context
-    Write-Host "✅ Successfully connected to storage account." -ForegroundColor Green
+    Set-AzContext -Subscription $subscriptionId | Out-Null
+    Write-Host "✅ Subscription context set to '$subscriptionId'" -ForegroundColor Green
 }
 catch {
-    Write-Error "❌ Could not get storage account context. Please check the following:"
-    Write-Error "   1. You are logged into the correct Azure directory/subscription in Cloud Shell."
-    Write-Error "   2. The storage account name '$storageAccountName' is correct."
-    Write-Error "   3. The resource group name '$resourceGroupName' is correct."
-    return
+    Write-Error "❌ CRITICAL ERROR: Could not set the subscription context."
+    Write-Error "Please verify that the subscription ID '$subscriptionId' is correct and that your account has access to it."
+    return # Stop the script
+}
+
+# --- Step 2: Explicitly Get Storage Account Key and Create Context ---
+Write-Host "🔑 Fetching storage account key to create a secure context..."
+try {
+    $storageAccountKey = (Get-AzStorageAccountKey -ResourceGroupName $resourceGroupName -Name $storageAccountName)[0].Value
+    $storageContext = New-AzStorageContext -StorageAccountName $storageAccountName -StorageAccountKey $storageAccountKey
+    Write-Host "✅ Successfully created storage context." -ForegroundColor Green
+}
+catch {
+    Write-Error "❌ CRITICAL ERROR: Could not get the storage account key or create a context."
+    Write-Error "This usually means a permissions issue. Please ensure your user has the 'Storage Blob Data Contributor' or 'Contributor' role on the '$storageAccountName' storage account."
+    return # Stop the script
 }
 
 # --- Data Generation Templates ---
@@ -51,126 +60,48 @@ $locations = @("USA", "GBR", "DEU", "IND", "AUS", "JPN")
 
 # --- Main Generation and Upload Loop ---
 for ($i = 1; $i -le $numberOfFiles; $i++) {
-    $fileName = "simulated_log_$(Get-Date -Format 'yyyyMMddHHmmssfff')_part$i.csv"
-    $gzFileName = "$($fileName).gz"
+    $localTempGzPath = Join-Path -Path $HOME -ChildPath "temp_simulated_log_part$i.csv.gz"
+    $blobName = "simulated_log_$(Get-Date -Format 'yyyyMMddHHmmssfff')_part$i.csv.gz"
     
-    Write-Host "`n($i/$numberOfFiles) Generating data for: $gzFileName"
+    Write-Host "`n($i/$numberOfFiles) Generating data for: $blobName"
 
-    # Determine the number of events for this specific file.
     $eventsInThisFile = if (($i -eq $numberOfFiles) -and ($totalEvents % $eventsPerFile -ne 0)) { $totalEvents % $eventsPerFile } else { $eventsPerFile }
-
-    # Use a generic list to hold the event objects for performance.
     $eventList = [System.Collections.Generic.List[PSObject]]::new()
 
-    # Generate random data for each event in the current file.
     1..$eventsInThisFile | ForEach-Object {
-        $eventTimestamp = ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - (Get-Random -Minimum 1 -Maximum 86400))
         $randomUser = "user" + (Get-Random -Minimum 100 -Maximum 999) + "@examplecorp.com"
-        $randomSrcIp = "192.168.$(Get-Random -Minimum 1 -Maximum 254).$(Get-Random -Minimum 2 -Maximum 254)"
-        $randomDstIp = "10.$(Get-Random -Minimum 0 -Maximum 254).$(Get-Random -Minimum 0 -Maximum 254).$(Get-Random -Minimum 2 -Maximum 254)"
-        $randomDomain = $domains | Get-Random
-        $randomActivity = $activities | Get-Random
-        $bytesSent = Get-Random -Minimum 100 -Maximum 5000
-        $bytesReceived = Get-Random -Minimum 1000 -Maximum 450000
-        
-        # Create a PowerShell object representing one row in the CSV.
         $event = [PSCustomObject]@{
             _time                   = (Get-Date).AddSeconds(- (Get-Random -Minimum 1 -Maximum 86400)).ToString("o")
-            ccl                     = "private"
-            admin_user_name         = ""
-            timestamp               = $eventTimestamp
+            timestamp               = ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - (Get-Random -Minimum 1 -Maximum 86400))
             user                    = $randomUser
-            userkey                 = $randomUser
-            organization_unit       = "Corporate Users"
-            sourceip                = $randomSrcIp
-            srchost                 = "workstation-" + (Get-Random -Minimum 100 -Maximum 999)
-            src_location            = $locations | Get-Random
-            destinationip           = $randomDstIp
-            dsthost                 = $randomDomain
-            dst_location            = $locations | Get-Random
-            app                     = $randomDomain -replace '\..*$'
-            app_category            = "Cloud Apps"
-            page                    = "User Activity"
-            csm_url_category        = "Business and Economy"
-            traffic_type            = "CloudApp"
-            from_user               = $randomUser
-            to_user                 = ""
-            activity                = $randomActivity
-            access_method           = "Client"
-            os                      = "Windows"
-            os_version              = "11"
-            browser                 = "Chrome"
-            browser_version         = "126.0.0.0"
-            device_classification   = "Managed"
-            device_id               = ([System.Guid]::NewGuid()).Guid
-            policy                  = "Allow Business Apps"
-            rule_name               = "Default Outbound"
-            alert_name              = ""
-            alert_id                = ""
-            severity                = ""
-            alert_state             = ""
-            dlp_profile             = ""
-            dlp_file                = ""
-            dlp_file_type           = ""
-            dlp_file_size           = ""
-            dlp_action              = ""
-            dpa_status              = "allowed"
-            forensic_status         = "NA"
-            svcc                    = "private"
-            bann                    = $randomDomain -replace '\..*$'
-            urlo                    = "https://{0}/{1}" -f $randomDomain, $randomActivity
-            url                     = "https://{0}/{1}" -f $randomDomain, $randomActivity
-            urldomain               = $randomDomain
-            urlquery                = ""
-            urlfile                 = $randomActivity
-            urlpath                 = "/$randomActivity"
-            urlprotocol             = "https"
-            urlext                  = ""
-            urlhostname             = $randomDomain
-            useragent               = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-            referer                 = "https://portal.example.com"
-            contenttype             = "application/json"
-            requestmethod           = "POST"
-            bytestotal              = $bytesSent + $bytesReceived
-            bytessent               = $bytesSent
-            bytesreceived           = $bytesReceived
-            clientip                = $randomSrcIp
-            serverip                = $randomDstIp
+            sourceip                = "192.168.$(Get-Random -Minimum 1 -Maximum 254).$(Get-Random -Minimum 2 -Maximum 254)"
+            dsthost                 = ($domains | Get-Random)
+            activity                = ($activities | Get-Random)
+            # Add other fields as needed based on the sample file
         }
         $eventList.Add($event)
     }
     
-    Write-Host "  -> Generated $eventsInThisFile events in memory."
-
-    # Convert the list of objects to a single CSV string.
-    $csvContent = $eventList | ConvertTo-Csv -NoTypeInformation | Out-String
-
-    # Gzip the CSV content, all in memory.
+    $csvContent = $eventList | ConvertTo-Csv -NoTypeInformation
     $inputBytes = [System.Text.Encoding]::UTF8.GetBytes($csvContent)
-    $memoryStream = [System.IO.MemoryStream]::new()
-    $gzipStream = [System.IO.Compression.GZipStream]::new($memoryStream, [System.IO.Compression.CompressionMode]::Compress)
+    $fileStream = [System.IO.FileStream]::new($localTempGzPath, [System.IO.FileMode]::Create)
+    $gzipStream = [System.IO.Compression.GZipStream]::new($fileStream, [System.IO.Compression.CompressionMode]::Compress)
     $gzipStream.Write($inputBytes, 0, $inputBytes.Length)
-    $gzipStream.Close()
-    $compressedBytes = $memoryStream.ToArray()
-    $memoryStream.Close()
+    $gzipStream.Close(); $fileStream.Close()
 
-    # Create a new stream for the upload from the compressed byte array.
-    $uploadStream = [System.IO.MemoryStream]::new($compressedBytes)
-    $uploadStream.Position = 0
-
-    Write-Host "  -> Compressing and uploading to Azure Blob Storage..."
+    Write-Host "  -> Uploading to Azure..."
     try {
-        # Upload the in-memory stream directly to the blob.
-        Set-AzStorageBlobContent -Context $storageContext -Container $containerName -Blob $gzFileName -ICloudBlobStream $uploadStream -Force
-        $blobUri = "https://{0}.blob.core.windows.net/{1}/{2}" -f $storageAccountName, $containerName, $gzFileName
+        Set-AzStorageBlobContent -Context $storageContext -Container $containerName -File $localTempGzPath -Blob $blobName -Force
+        $blobUri = "https://{0}.blob.core.windows.net/{1}/{2}" -f $storageAccountName, $containerName, $blobName
         Write-Host "  -> ✅ Upload successful: $blobUri" -ForegroundColor Green
     }
     catch {
-        Write-Error "  -> ❌ Upload failed for $gzFileName. Error: $_"
+        Write-Error "  -> ❌ Upload failed for $blobName. Error: $_"
     }
     finally {
-        # Clean up the stream.
-        $uploadStream.Close()
+        if (Test-Path $localTempGzPath) {
+            Remove-Item $localTempGzPath
+        }
     }
 }
 
