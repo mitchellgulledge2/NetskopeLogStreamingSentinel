@@ -585,7 +585,7 @@
                         "StorageAccountSubscription": { "defaultValue": "StorageAccountSubscription", "type": "string" }, "EGSystemTopicName": { "defaultValue": "", "type": "string" }
                     },
                     "variables": {
-                        "_dataConnectorContentIdConnections": "[variables('_dataConnectorContentIdConnections')]", "connectorName": "testfolder",
+                        "_dataConnectorContentIdConnections": "[variables('_dataConnectorContentIdConnections')]", "connectorName": "netskopeevents",
                         "storageAccountName": "[[split(split(parameters('blobContainerUri'), 'https://')[1], '.blob.core.windows.net')[0]]",
                         "blobContainerName": "[[split(split(parameters('blobContainerUri'), '.blob.core.windows.net/')[1], '/')[0]]",
                         "queueName": "[[concat(variables('connectorName'), '-notification')]", "dlqName": "[[concat(variables('connectorName'), '-dlq')]",
